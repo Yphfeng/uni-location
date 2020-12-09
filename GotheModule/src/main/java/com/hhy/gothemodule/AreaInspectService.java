@@ -37,6 +37,7 @@ public class AreaInspectService extends Service implements AMapLocationListener 
     public String returnData;
     private Intent intent = new Intent("com.hhy.location.RECEIVER");
     private  AlarmManager alarmManager;
+    private  Notification noti;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -79,6 +80,7 @@ public class AreaInspectService extends Service implements AMapLocationListener 
         if (mlocationClient != null) {
             mlocationClient.stopLocation();
         }
+        noti = null;
         super.onDestroy();
     }
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -115,6 +117,7 @@ public class AreaInspectService extends Service implements AMapLocationListener 
     @RequiresApi(api = Build.VERSION_CODES.O)
     private void startWork() {
         //进行8.0的判断
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             NotificationChannel notificationChannel = new NotificationChannel(CHANNEL_ONE_ID,
                     CHANNEL_ONE_NAME, NotificationManager.IMPORTANCE_HIGH);
@@ -127,24 +130,27 @@ public class AreaInspectService extends Service implements AMapLocationListener 
         }
         PendingIntent notificationIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification noti = new Notification.Builder(this)
-                    .setChannelId(CHANNEL_ONE_ID)
-                    .setPriority(Notification.PRIORITY_MIN)
-                    .setContentTitle("好货云正在运行，请勿关闭应用")
-                    .setContentText("持续定位中")
-                    .setContentIntent(notificationIntent)
-                    .build();
-            startForeground(123456,noti);
-        } else {
-            Notification noti = new Notification.Builder(this)
-                    .setPriority(Notification.PRIORITY_MIN)
-                    .setContentTitle("好货云正在运行，请勿关闭应用")
-                    .setContentText("持续定位中")
-                    .setContentIntent(notificationIntent)
-                    .build();
-            startForeground(123456,noti);
+        if (noti == null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                 noti = new Notification.Builder(this)
+                        .setChannelId(CHANNEL_ONE_ID)
+                        .setPriority(Notification.PRIORITY_MIN)
+                        .setContentTitle("好货云正在运行，请勿关闭应用")
+                        .setContentText("持续定位中")
+                        .setContentIntent(notificationIntent)
+                        .build();
+                startForeground(123456,noti);
+            } else {
+                 noti = new Notification.Builder(this)
+                        .setPriority(Notification.PRIORITY_MIN)
+                        .setContentTitle("好货云正在运行，请勿关闭应用")
+                        .setContentText("持续定位中")
+                        .setContentIntent(notificationIntent)
+                        .build();
+                startForeground(123456,noti);
+            }
         }
+
 
         start_mp3();
         startLocation();

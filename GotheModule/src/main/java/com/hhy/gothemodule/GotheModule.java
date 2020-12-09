@@ -222,8 +222,8 @@ public class GotheModule extends UniModule  {
       try {
           Intent intent = new Intent(mUniSDKInstance.getContext(), AreaInspectService.class);
           if (areaInspectService != null) {
-              mUniSDKInstance.getContext().stopService(intent);
               mUniSDKInstance.getContext().unbindService(conn);
+              mUniSDKInstance.getContext().stopService(intent);
               callback.invoke(1);
           } else {
               callback.invoke(1);
