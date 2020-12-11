@@ -30,7 +30,7 @@ public class AreaInspectService extends Service implements AMapLocationListener 
     private static final String CHANNEL_ONE_ID = "1";
     private static final CharSequence CHANNEL_ONE_NAME = "CHANNEL_ONE_ID";
     private static final String TAG = "123132";
-    private static final int ONE_Miniute=600*1000;
+    private static final int ONE_Miniute = 10*1000;
     private static final int PENDING_REQUEST=0;
     public AMapLocationClientOption mLocationOption = null;
     private AMapLocationClient mlocationClient;

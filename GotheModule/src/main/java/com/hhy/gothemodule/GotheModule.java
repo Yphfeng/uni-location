@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
@@ -28,27 +29,36 @@ import io.dcloud.feature.uniapp.bridge.UniJSCallback;
 import static android.content.Context.LOCATION_SERVICE;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 public class GotheModule extends UniModule  {
     private AreaInspectService areaInspectService;
-    public Integer num = 1;
+    public Integer num = 0;
     public String returnData;
     private static final String TAG = "aaa";
     private static final int BAIDU_READ_PHONE_STATE = 100;//定位权限请求
     private static final int PRIVATE_CODE = 1315;//开启GPS权限
     private LocationManager lm;
-    private String[] LOCATIONGPS = new String[]{Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_BACKGROUND_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION,};
-
+    private String[] LOCATIONGPS = new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,};
+    MsgReceiver msgReceiver;
     //开始定位
+
+
+
     @UniJSMethod(uiThread = false)
     public void startLocation(JSONObject options, UniJSCallback callback) {
         Log.e(TAG, "testAsyncFunc--"+options);
-        //注册动态广播
-        //动态注册广播接收器
-        MsgReceiver msgReceiver = new MsgReceiver();
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction("com.hhy.location.RECEIVER");
-        mUniSDKInstance.getContext().registerReceiver(msgReceiver, intentFilter);
+       try{
+           mUniSDKInstance.getContext().unregisterReceiver(msgReceiver);
+       } catch (Exception err) {
+
+       }
+       //动态注册广播接收器
+       msgReceiver = new MsgReceiver();
+       IntentFilter intentFilter = new IntentFilter();
+       intentFilter.addAction("com.hhy.location.RECEIVER");
+       mUniSDKInstance.getContext().registerReceiver(msgReceiver, intentFilter);
+
 
         if(callback != null) {
             if(mUniSDKInstance != null && mUniSDKInstance.getContext() instanceof Activity) {
@@ -66,18 +76,18 @@ public class GotheModule extends UniModule  {
         }
     }
 
-
     //开始打卡
     @UniJSMethod(uiThread = false)
     public void startOneLocation(JSONObject options, UniJSCallback callback) {
         Log.e(TAG, "testAsyncFunc--"+options);
         //注册动态广播
         //动态注册广播接收器
-        MsgReceiver msgReceiver = new MsgReceiver();
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction("com.example.uniplugin_location.RECEIVER");
-        mUniSDKInstance.getContext().registerReceiver(msgReceiver, intentFilter);
-
+       if (msgReceiver == null) {
+           msgReceiver = new MsgReceiver();
+           IntentFilter intentFilter = new IntentFilter();
+           intentFilter.addAction("com.example.uniplugin_location.RECEIVER");
+           mUniSDKInstance.getContext().registerReceiver(msgReceiver, intentFilter);
+       }
         if(callback != null) {
             if(mUniSDKInstance != null && mUniSDKInstance.getContext() instanceof Activity) {
                 Intent intent = new Intent(mUniSDKInstance.getContext(), AreaInspectService.class);
@@ -133,7 +143,7 @@ public class GotheModule extends UniModule  {
     public void showGPSContacts(UniJSCallback callback) {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { //判断是否为android6.0系统版本，如果是，需要动态添加权限
-            if (ActivityCompat.checkSelfPermission(mUniSDKInstance.getContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+            if (ActivityCompat.checkSelfPermission(mUniSDKInstance.getContext(), Manifest.permission.ACCESS_COARSE_LOCATION)
                     != PERMISSION_GRANTED) {// 没有权限，申请权限。
                 ActivityCompat.requestPermissions(((Activity)mUniSDKInstance.getContext()), LOCATIONGPS, BAIDU_READ_PHONE_STATE);
             } else {
@@ -191,8 +201,7 @@ public class GotheModule extends UniModule  {
         return isIgnoring;
     }
     //申请加入系统白名单，退出省电模式
-    @UniJSMethod(uiThread = false)
-    public void requestIgnoreBatteryOptimizations(UniJSCallback callback) {
+    private void requestIgnoreBatteryOptimizations() {
         try {
             Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
             intent.setData(Uri.parse("package:" + mUniSDKInstance.getContext().getPackageName()));
@@ -201,6 +210,41 @@ public class GotheModule extends UniModule  {
             e.printStackTrace();
         }
     }
+
+    @UniJSMethod(uiThread = false)
+    public void isPower(UniJSCallback callback) {
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
+            //android6以上加入了电池优化
+            Boolean isIgnoringBattery = isIgnoringBatteryOptimizations();
+            if (isIgnoringBattery) {
+
+                if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+                    //android10及以上后台定位所需权限
+                    if (ContextCompat.checkSelfPermission((Activity)mUniSDKInstance.getContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED)
+                    {
+                        //请求后台权限
+                        ActivityCompat.requestPermissions((Activity)mUniSDKInstance.getContext(), new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 2);
+
+                    } else {
+                        callback.invoke(1);
+                    }
+                } else {
+                    callback.invoke(1);
+                }
+
+
+            } else {
+                requestIgnoreBatteryOptimizations();
+            }
+        } else {
+           callback.invoke(1);
+        }
+    }
+
+    //前台权限判断是否获取
+
+
+
 
     //判断是否加入了白名单
     @UniJSMethod(uiThread = false)
@@ -211,6 +255,7 @@ public class GotheModule extends UniModule  {
             data.put("code", "1");
             callback.invoke(data);
         } else {
+            requestIgnoreBatteryOptimizations();
             JSONObject data = new JSONObject();
             data.put("code", "0");
             callback.invoke(data);
@@ -259,6 +304,12 @@ public class GotheModule extends UniModule  {
             //跳转失败
             callback.invoke(0);
         }
+    }
+
+    @Override
+    public void onActivityDestroy() {
+        super.onActivityDestroy();
+
     }
 }
 
